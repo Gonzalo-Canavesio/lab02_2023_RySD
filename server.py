@@ -10,6 +10,8 @@ import optparse
 import socket
 import connection
 from constants import *
+import sys
+import os
 
 
 class Server(object):
@@ -20,12 +22,21 @@ class Server(object):
 
     def __init__(self, addr=DEFAULT_ADDR, port=DEFAULT_PORT,
                  directory=DEFAULT_DIR):
+        # Revisar que el directorio exista, y si no, crearlo
+        if not os.path.exists(directory):
+
+            try: os.makedirs(directory)
+            except OSError:
+                print("No se pudo crear el directorio %s." % directory)
+                sys.exit(1)
+
         print("Serving %s on %s:%s." % (directory, addr, port))
-        # FALTA: Crear socket del servidor, configurarlo, asignarlo
-        # a una dirección y puerto, etc.
-        oursocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        oursocket.bind(addr,port) #vincular el socket a una dirección, addr,  y un puerto específicos en un servidor, port.
         
+        # Se crea el socket y se lo vincula a la dirección y puerto
+        oursocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        oursocket.bind(addr,port)
+        
+        # Se guarda el socket y el directorio compartido en el objeto
         self.socket = oursocket
         self.directory = directory
 
@@ -34,14 +45,12 @@ class Server(object):
         Loop principal del servidor. Se acepta una conexión a la vez
         y se espera a que concluya antes de seguir.
         """
-        while True:
-            pass
-            # FALTA: Aceptar una conexión al server, crear una
-            # Connection para la conexión y atenderla hasta que termine.
-            (cnSocket,  ) = self.socket.accept() #bloquea la ejecución hasta que se recibe una conexión entrante
-            cn = connection.Connection(cnSocket, self.directory) #crea un objeto Connection para manejar la conexión entrante
-            cn.handle(cn) # se encarga de la conexion
+        self.socket.listen()
 
+        while True:
+            (cnSocket, cnAdress) = self.socket.accept() # Bloquea la ejecución hasta que se recibe una conexión entrante
+            cn = connection.Connection(cnSocket, self.directory) # Crea un objeto Connection para manejar la conexión entrante
+            cn.handle() # Atiende la conexión entrante
 
 #Esta función main() es el punto de entrada del programa que lanza un servidor que utiliza el protocolo de transferencia de archivos casero HFTP
 def main():
