@@ -23,6 +23,11 @@ class Server(object):
         print("Serving %s on %s:%s." % (directory, addr, port))
         # FALTA: Crear socket del servidor, configurarlo, asignarlo
         # a una dirección y puerto, etc.
+        oursocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        oursocket.bind(addr,port) #vincular el socket a una dirección, addr,  y un puerto específicos en un servidor, port.
+        
+        self.socket = oursocket
+        self.directory = directory
 
     def serve(self):
         """
@@ -33,11 +38,15 @@ class Server(object):
             pass
             # FALTA: Aceptar una conexión al server, crear una
             # Connection para la conexión y atenderla hasta que termine.
+            (cnSocket,  ) = self.socket.accept() #bloquea la ejecución hasta que se recibe una conexión entrante
+            cn = connection.Connection(cnSocket, self.directory) #crea un objeto Connection para manejar la conexión entrante
+            cn.handle(cn) # se encarga de la conexion
 
 
+#Esta función main() es el punto de entrada del programa que lanza un servidor que utiliza el protocolo de transferencia de archivos casero HFTP
 def main():
     """Parsea los argumentos y lanza el server"""
-
+    #configurar la dirección IP, el número de puerto y el directorio compartido del servidor
     parser = optparse.OptionParser()
     parser.add_option(
         "-p", "--port",
@@ -48,21 +57,22 @@ def main():
     parser.add_option(
         "-d", "--datadir",
         help="Directorio compartido", default=DEFAULT_DIR)
-
+    #Verifica si hay argumentos adicionales después de las opciones. 
+    #Si se proporcionan argumentos adicionales, muestra la ayuda del programa y sale del programa.
     options, args = parser.parse_args()
     if len(args) > 0:
         parser.print_help()
         sys.exit(1)
     try:
-        port = int(options.port)
+        port = int(options.port) #Convierte el valor de puerto proporcionado en un número entero.
     except ValueError:
         sys.stderr.write(
             "Numero de puerto invalido: %s\n" % repr(options.port))
         parser.print_help()
         sys.exit(1)
-
-    server = Server(options.address, port, options.datadir)
-    server.serve()
+    
+    server = Server(options.address, port, options.datadir) #Crea un objeto servidor utilizando la dirección IP, el número de puerto y el directorio compartido especificados.
+    server.serve() #Llama al método serve() en el objeto servidor para que comience a escuchar conexiones entrantes.
 
 
 if __name__ == '__main__':

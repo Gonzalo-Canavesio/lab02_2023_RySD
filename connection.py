@@ -16,10 +16,13 @@ class Connection(object):
 
     def __init__(self, socket, directory):
         # FALTA: Inicializar atributos de Connection
+        self.directory = directory
+        self.socket = socket
         pass
 
     def handle(self):
         """
         Atiende eventos de la conexión hasta que termina.
         """
+        #completar :C, dsp leo 
         pass

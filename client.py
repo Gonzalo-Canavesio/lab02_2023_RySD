@@ -196,11 +196,15 @@ class Client(object):
                             % (filename, self.status))
 
 
+#Esta función main() es el punto de entrada del programa que permite a un usuario 
+#interactuar con un cliente que utiliza el protocolo de transferencia de archivos casero HFTP
 def main():
     """
     Interfaz interactiva simple para el cliente: permite elegir un archivo
     y bajarlo.
     """
+    #Define los diferentes niveles de depuración (DEBUG, INFO, WARN, ERROR) 
+    #y los asocia con valores numéricos específicos de nivel de registro de eventos (logging level).
     DEBUG_LEVELS = {'DEBUG': logging.DEBUG,
                     'INFO': logging.INFO,
                     'WARN': logging.WARNING,
@@ -208,6 +212,8 @@ def main():
                     }
 
     # Parsear argumentos
+    #Analiza los argumentos de línea de comandos proporcionados por el usuario para configurar la dirección del servidor 
+    #y el puerto donde se ejecutará el servidor así como el nivel de depuración.
     parser = optparse.OptionParser(usage="%prog [options] server")
     parser.add_option("-p", "--port",
                       help="Numero de puerto TCP donde escuchar", default=DEFAULT_PORT)
@@ -229,9 +235,10 @@ def main():
         sys.exit(1)
 
     # Setar verbosidad
+    #Convierte el valor de nivel de depuración proporcionado en el formato de nivel de registro de eventos numérico correspondiente.
     code_level = DEBUG_LEVELS.get(options.level)  # convertir el str en codigo
     logging.getLogger().setLevel(code_level)
-
+    #Crea un objeto cliente utilizando la dirección del servidor y el puerto especificados.
     try:
         client = Client(args[0], port)
     except(socket.error, socket.gaierror):
@@ -241,18 +248,19 @@ def main():
     print("* Bienvenido al cliente HFTP - "
           "the Home-made File Transfer Protocol *\n"
           "* Estan disponibles los siguientes archivos:")
-
+    #Obtiene la lista de archivos disponibles en el servidor.
     files = client.file_lookup()
 
     for filename in files:
         print(filename)
-
+    #Si el estado del cliente es CODE_OK, es decir, la conexión al servidor se estableció correctamente,
+    #solicita al usuario el nombre del archivo a descargar.
     if client.status == CODE_OK:
         print("* Indique el nombre del archivo a descargar:")
         client.retrieve(input().strip())
-
+    #Cierra la conexión del cliente.
     client.close()
 
-
+    
 if __name__ == '__main__':
     main()
