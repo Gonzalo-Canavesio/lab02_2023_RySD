@@ -34,7 +34,7 @@ class Server(object):
         
         # Se crea el socket y se lo vincula a la dirección y puerto
         oursocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        oursocket.bind(addr,port)
+        oursocket.bind((addr,port))
         
         # Se guarda el socket y el directorio compartido en el objeto
         self.socket = oursocket
