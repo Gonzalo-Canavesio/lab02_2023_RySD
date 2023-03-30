@@ -67,12 +67,37 @@ class Connection(object):
             rta = f"{str(size)} {EOL}"
             self.contact(rta)               
 
+    def get_slice(self, filename: str, offset: int, size: int):
+        filepath = os.path.join(self.directory, filename)
+        if not os.path.isfile(filepath): # existe archivo?
+            rta = mtext(FILE_NOT_FOUND) + EOL
+            self.contact(rta)
+        elif not self.valid_file(filename): # argumentos validos?
+            rta = mtext(INVALID_ARGUMENTS) + EOL
+            self.contact(rta)
+        else:
+            file_size = os.path.getsize(filepath)
+            if offset < 0 or offset >= file_size or size < 0 or offset + size > file_size:
+                rta = mtext(BAD_OFFSET) + EOL  # error con el offset
+                self.contact(rta)
+            rta = mtext(CODE_OK) + EOL
+            self.contact(rta)
+            with open(filepath, "rb") as f: #Abrir el archivo en modo lectura binario "rb", 'r' se abrira el archivo en modo lectura y 'b' se abrira en modo binario
+                f.seek(offset) #lee el slice del archivo especificado, empezando desde el offset
+                slice_data = f.read(size) #y leyendo el tamaño especificado
+                self.contact(slice_data, codif='b64encode') #Codifica el slice en base64
+            rta = EOL
+            self.contact(rta)
+        
+    
     def handle(self):
         """
         Atiende eventos de la conexión hasta que termina.
         """
-         
-        pass
+        while self.active:
+            
+             
+        
     
 def mtext(cod: int):
         return f"{cod} {error_messages[cod]}"
