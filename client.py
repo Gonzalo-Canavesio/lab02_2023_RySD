@@ -83,12 +83,12 @@ class Client(object):
         Devuelve la línea, eliminando el terminaodr y los espacios en blanco
         al principio y al final.
         """
-        while not EOL in self.buffer and self.connected:
+        while EOL not in self.buffer and self.connected:
             if timeout is not None:
-                t1 = time.clock()
+                t1 = time.process_time()
             self._recv(timeout)
             if timeout is not None:
-                t2 = time.clock()
+                t2 = time.process_time()
                 timeout -= t2 - t1
                 t1 = t2
         if EOL in self.buffer:
@@ -196,15 +196,11 @@ class Client(object):
                             % (filename, self.status))
 
 
-#Esta función main() es el punto de entrada del programa que permite a un usuario 
-#interactuar con un cliente que utiliza el protocolo de transferencia de archivos casero HFTP
 def main():
     """
     Interfaz interactiva simple para el cliente: permite elegir un archivo
     y bajarlo.
     """
-    #Define los diferentes niveles de depuración (DEBUG, INFO, WARN, ERROR) 
-    #y los asocia con valores numéricos específicos de nivel de registro de eventos (logging level).
     DEBUG_LEVELS = {'DEBUG': logging.DEBUG,
                     'INFO': logging.INFO,
                     'WARN': logging.WARNING,
@@ -212,15 +208,20 @@ def main():
                     }
 
     # Parsear argumentos
-    #Analiza los argumentos de línea de comandos proporcionados por el usuario para configurar la dirección del servidor 
-    #y el puerto donde se ejecutará el servidor así como el nivel de depuración.
     parser = optparse.OptionParser(usage="%prog [options] server")
-    parser.add_option("-p", "--port",
-                      help="Numero de puerto TCP donde escuchar", default=DEFAULT_PORT)
-    parser.add_option("-v", "--verbose", dest="level", action="store",
-                      help="Determina cuanta informacion de depuracion a mostrar"
-                      "(valores posibles son: ERROR, WARN, INFO, DEBUG)",
-                      default="ERROR")
+    parser.add_option(
+        "-p",
+        "--port",
+        help="Numero de puerto TCP donde escuchar",
+        default=DEFAULT_PORT)
+    parser.add_option(
+        "-v",
+        "--verbose",
+        dest="level",
+        action="store",
+        help="Determina cuanta informacion de depuracion a mostrar"
+        "(valores posibles son: ERROR, WARN, INFO, DEBUG)",
+        default="ERROR")
     options, args = parser.parse_args()
     try:
         port = int(options.port)
@@ -235,32 +236,30 @@ def main():
         sys.exit(1)
 
     # Setar verbosidad
-    #Convierte el valor de nivel de depuración proporcionado en el formato de nivel de registro de eventos numérico correspondiente.
     code_level = DEBUG_LEVELS.get(options.level)  # convertir el str en codigo
     logging.getLogger().setLevel(code_level)
-    #Crea un objeto cliente utilizando la dirección del servidor y el puerto especificados.
+
     try:
         client = Client(args[0], port)
-    except(socket.error, socket.gaierror):
+    except (socket.error, socket.gaierror):
         sys.stderr.write("Error al conectarse\n")
         sys.exit(1)
 
     print("* Bienvenido al cliente HFTP - "
           "the Home-made File Transfer Protocol *\n"
           "* Estan disponibles los siguientes archivos:")
-    #Obtiene la lista de archivos disponibles en el servidor.
+
     files = client.file_lookup()
 
     for filename in files:
         print(filename)
-    #Si el estado del cliente es CODE_OK, es decir, la conexión al servidor se estableció correctamente,
-    #solicita al usuario el nombre del archivo a descargar.
+
     if client.status == CODE_OK:
         print("* Indique el nombre del archivo a descargar:")
         client.retrieve(input().strip())
-    #Cierra la conexión del cliente.
+
     client.close()
 
-    
+
 if __name__ == '__main__':
     main()

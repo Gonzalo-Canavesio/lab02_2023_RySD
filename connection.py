@@ -19,6 +19,7 @@ class Connection(object):
         self.directory = directory
         self.socket = socket
         self.active = True
+        self.bof = ''
     
     def contact(self, msj: bytes or str, codif='ascii'):
         #se va enviar el mensaje y se fija en codifi ya que es la codificacion que va a usar
@@ -53,7 +54,7 @@ class Connection(object):
         rta += EOL # fin de la cadena
         self.contact(rta)
     
-    def get_metadataFILENAME(self, filename: str):
+    def get_metadata(self, filename: str):
         rta = mtext(CODE_OK) + EOL
         
         if not(os.path.isfile(os.path.join(self.directory, filename))): #nos fijamos si no es un arhivo la os.path.join forma una ruta completa con self.directory y el archivo filename y dsp ve si es un archivo que existe
@@ -88,16 +89,26 @@ class Connection(object):
                 self.contact(slice_data, codif='b64encode') #Codifica el slice en base64
             rta = EOL
             self.contact(rta)
-        
+    
+    def _recv(self):
+        try:
+            while True:
+                data = self.socket.recv(4096).decode('ascii')
+                self.bof += data
+                
+                if len(data) == 0:
+                    self.active = False
+                    break
+        except UnicodeError:
+            rta = mtext(BAD_REQUEST) + EOL
+            self.send(rta)
+            self.active = False
+            f"Closing connection..."    
     
     def handle(self):
         """
         Atiende eventos de la conexión hasta que termina.
         """
-        while self.active:
-            
-             
-        
-    
+
 def mtext(cod: int):
-        return f"{cod} {error_messages[cod]}"
+    return f"{cod} {error_messages[cod]}"
