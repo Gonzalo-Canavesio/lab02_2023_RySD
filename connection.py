@@ -109,6 +109,46 @@ class Connection(object):
         """
         Atiende eventos de la conexión hasta que termina.
         """
+        while self.active:
+            self._recv()
+            if self.bof.find(EOL) != -1:
+                line, self.bof = self.bof.split(EOL, 1)
+                line = line.strip()
+                if len(line) > 0:
+                    try:
+                        cmd, *args = line.split(' ')
+                        if cmd == 'get_file_listing':
+                            self.get_file_listing()
+                        elif cmd == 'get_metadata':
+                            if len(args) == 1:
+                                self.get_metadata(args[0])
+                            else:
+                                rta = mtext(BAD_REQUEST) + EOL
+                                self.contact(rta)
+                        elif cmd == 'get_slice':
+                            if len(args) == 3:
+                                self.get_slice(args[0], int(args[1]), int(args[2]))
+                            else:
+                                rta = mtext(BAD_REQUEST) + EOL
+                                self.contact(rta)
+                        elif cmd == 'quit':
+                            self.quit()
+                        else:
+                            rta = mtext(BAD_REQUEST) + EOL
+                            self.contact(rta) 
+                    except Exception as e:
+                        f"Error in connection handling: {e}"
+                        rta = mtext(INTERNAL_ERROR) + EOL
+                        self.contact(rta)
+                        self.active = False
+                        f"Closing connection..."
+            else:
+                rta = mtext(BAD_EOL) + EOL
+                self.contact(rta)
+                self.active = False
+                f"Closing connection..."
+        self.socket.close()
+
 
 def mtext(cod: int):
     return f"{cod} {error_messages[cod]}"
