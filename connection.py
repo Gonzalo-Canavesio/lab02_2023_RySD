@@ -17,12 +17,29 @@ class Connection(object):
     """
 
     def __init__(self, socket: socket.socket, directory):
+        """
+        Inicializa una nueva conexión.
+
+        Args:
+            socket: Objeto socket que representa la conexión.
+            directory: Directorio raíz de los archivos que se compartirán con el cliente.
+        """
         self.directory = directory
         self.socket = socket
         self.active = True
         self.bof = ""
 
     def contact(self, msj: bytes or str, codif="ascii"):
+        """
+        Envia un mensaje a través del socket de la conexión.
+
+        Args:
+            msj: Mensaje a enviar, puede ser una cadena de texto o bytes.
+            codif: Codificación a utilizar para enviar el mensaje. Por defecto es "ascii".
+
+        Raises:
+            ValueError: Si se especifica una codificación inválida.
+        """
         # se va enviar el mensaje y se fija en codifi ya que es la codificacion que va a usar
         if codif == "ascii":
             msj = msj.encode("ascii")
@@ -45,12 +62,18 @@ class Connection(object):
         f"Closing connection..."
 
     def valid_file(self, filename: str):
+        """
+        verifica si el nombre de archivo es valido
+        """
         # obtener los caracteres en filename que no pertenecen al conjunto VALID_CHARS
         aux = set(filename) - VALID_CHARS
         # si obtengo != 0 significa que tengo argumentos invalidos y si tengo 0 esta todo bien
         return len(aux) == 0
 
     def get_file_listing(self):
+        """
+        Obtiene la lista de archivos disponibles en el directorio y la envía al cliente.
+        """
         # Cadena de texto que indica que la operacion fue exitosa
         rta = mtext(CODE_OK) + EOL
 
@@ -63,6 +86,9 @@ class Connection(object):
         self.contact(rta)
 
     def get_metadata(self, filename: str):
+        """
+        Obtiene el tamaño de un archivo y lo envía al cliente.
+        """
         rta = mtext(CODE_OK) + EOL
         # nos fijamos si no es un arhivo la os.path.join forma una ruta completa con self.directory y el archivo filename y dsp ve si es un archivo que existe
         if not (os.path.isfile(os.path.join(self.directory, filename))):
@@ -78,6 +104,14 @@ class Connection(object):
             self.contact(rta)
 
     def get_slice(self, filename: str, offset: int, size: int):
+        """
+        Obtiene un slice del archivo especificado y lo envía al cliente en formato base64.
+
+        Args:
+            filename (str): El nombre del archivo del que se va a obtener el slice.
+            offset (int): El byte de inicio del slice.
+            size (int): El tamaño del slice.
+        """
         filepath = os.path.join(self.directory, filename)
         if not os.path.isfile(filepath):  # existe archivo?
             rta = mtext(FILE_NOT_FOUND) + EOL
@@ -109,6 +143,12 @@ class Connection(object):
             self.contact(rta)
 
     def _recv(self):
+        """
+        Recibe y decodifica datos del socket. Actualiza el buffer de entrada 'bof' con los datos recibidos.
+
+        Raises:
+            UnicodeError: Si hay un error de decodificación Unicode, se envía una respuesta de error al cliente y se cierra la conexión.
+        """
         try:
             while True:
                 data = self.socket.recv(4096).decode("ascii")
