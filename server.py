@@ -21,6 +21,15 @@ class Server(object):
     """
 
     def __init__(self, addr=DEFAULT_ADDR, port=DEFAULT_PORT, directory=DEFAULT_DIR):
+        """
+        Args:
+            addr (str): Dirección IP del servidor.
+            puerto (int): Puerto en el que el servidor aceptará conexiones entrantes.
+            directorio (str): Directorio compartido que se servirá a los clientes.
+
+        Raises:
+            OSError: Si no se puede crear el directorio especificado.
+        """
         # Revisar que el directorio exista, y si no, crearlo
         if not os.path.exists(directory):
             try:
