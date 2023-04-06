@@ -51,10 +51,8 @@ class Connection(object):
         # se encarga de enviar el mensaje a través del socket en trozos hasta que se haya enviado todo el mensaje
         while len(msj) > 0:
             sent = self.socket.send(msj)
-            if sent == len(msj):
-                break
-            msj = msj[sent]
-        # sent almacena la cantidad de bytes que se han enviado y se asegura que se haya enviado al menos un byte antes de seguir
+            msj = msj[sent:]
+
 
     def quit(self):
         rta = mtext(CODE_OK) + EOL
@@ -66,17 +64,14 @@ class Connection(object):
         """
         Obtiene la lista de archivos disponibles en el directorio y la envía al cliente.
         """
-        # Cadena de texto que indica que la operacion fue exitosa
-        rta = mtext(CODE_OK)
 
+        rta = EOL
         # obtengo la lista de archivos disponibles en el directorio
         for fil in os.listdir(self.directory):
             # voy agregando los archvios a la cadena de respuesta con \r\n al final
-            rta += EOL + fil
-        # fin de la cadena
+            rta += fil + EOL
 
-        rta += EOL
-        self.contact(rta)
+        self.contact(mtext(CODE_OK) + rta + EOL)
 
     def get_metadata(self, filename: str):
         """
@@ -201,6 +196,7 @@ class Connection(object):
                 self.command_selector(line)
             else:
                 self.active = False
+        
         print(f"Closing connection...")
         self.socket.close()
 

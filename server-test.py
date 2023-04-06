@@ -5,16 +5,15 @@
 # Copyright 2008-2010 Natalia Bidart y Daniel Moisset
 # $Id: server-test.py 388 2011-03-22 14:20:06Z nicolasw $
 
-
-import select
 import unittest
 import client
 import constants
+import select
+import time
 import socket
 import os
 import os.path
 import logging
-import time
 import sys
 
 DATADIR = 'testdata'
@@ -69,12 +68,9 @@ class TestHFTPServer(TestBase):
             self.fail("No se pudo establecer conexión al server")
         s.send('quit\r\n'.encode("ascii"))
         # Le damos TIMEOUT segundos para responder _algo_ y desconectar
-        w, _, _ = select.select([s], [], [], TIMEOUT)
-        self.assertEqual(
-            w,
-            [s],
-            "Se envió quit, no hubo respuesta en %0.1f segundos" %
-            TIMEOUT)
+        w, _, __ = select.select([s], [], [], TIMEOUT)
+        self.assertEqual(w, [s],
+                         "Se envió quit, no hubo respuesta en %0.1f segundos" % TIMEOUT)
         # Medio segundo más par
         start = time.process_time()
         got = s.recv(1024)
@@ -87,7 +83,7 @@ class TestHFTPServer(TestBase):
         # Se desconectó?
         self.assertTrue(not got)
         s.close()
-    
+
     def test_quit_answers_ok(self):
         c = self.new_client()
         c.close()
@@ -113,10 +109,8 @@ class TestHFTPServer(TestBase):
         c = self.new_client()
         m = c.get_metadata('bar')
         self.assertEqual(c.status, constants.CODE_OK)
-        self.assertEqual(
-            m,
-            test_size,
-            "El tamaño reportado para el archivo no es el correcto")
+        self.assertEqual(m, test_size,
+                         "El tamaño reportado para el archivo no es el correcto")
         c.close()
 
     def test_get_metadata_empty(self):
@@ -124,8 +118,8 @@ class TestHFTPServer(TestBase):
         c = self.new_client()
         m = c.get_metadata('bar')
         self.assertEqual(c.status, constants.CODE_OK)
-        self.assertEqual(
-            m, 0, "El tamaño reportado para el archivo no es el correcto")
+        self.assertEqual(m, 0,
+                         "El tamaño reportado para el archivo no es el correcto")
         c.close()
 
     def test_get_full_slice(self):
@@ -159,10 +153,8 @@ class TestHFTPServer(TestBase):
         c.get_slice(self.output_file, 100, 200)
         self.assertEqual(c.status, constants.CODE_OK)
         f = open(self.output_file)
-        self.assertEqual(
-            f.read(),
-            'b' * 200,
-            "El contenido del archivo no es el correcto")
+        self.assertEqual(f.read(),
+                         'b' * 200, "El contenido del archivo no es el correcto")
         f.close()
         c.get_slice(self.output_file, 200, 200)
         self.assertEqual(c.status, constants.CODE_OK)
@@ -174,10 +166,8 @@ class TestHFTPServer(TestBase):
         c.get_slice(self.output_file, 500, 100)
         self.assertEqual(c.status, constants.CODE_OK)
         f = open(self.output_file)
-        self.assertEqual(
-            f.read(),
-            'c' * 100,
-            "El contenido del archivo no es el correcto")
+        self.assertEqual(f.read(),
+                         'c' * 100, "El contenido del archivo no es el correcto")
         f.close()
         c.close()
 
@@ -188,42 +178,33 @@ class TestHFTPErrors(TestBase):
         c = self.new_client()
         c.send('qui\nt\n')
         status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.BAD_EOL,
-            "El servidor no contestó 100 ante un fin de línea erróneo")
-        c.close()
+        self.assertEqual(status, constants.BAD_EOL,
+                         "El servidor no contestó 100 ante un fin de línea erróneo")
 
     def test_bad_command(self):
         c = self.new_client()
         c.send('verdura')
         status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.INVALID_COMMAND,
-            "El servidor no contestó 200 ante un comando inválido")
+        self.assertEqual(status, constants.INVALID_COMMAND,
+                         "El servidor no contestó 200 ante un comando inválido")
         c.close()
 
     def test_bad_argument_count(self):
         c = self.new_client()
         c.send('quit passing extra arguments!')
         status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.INVALID_ARGUMENTS,
-            "El servidor no contestó 201 ante una lista de argumentos "
-            "muy larga")
+        self.assertEqual(status, constants.INVALID_ARGUMENTS,
+                         "El servidor no contestó 201 ante una lista de argumentos "
+                         "muy larga")
         c.close()
 
     def test_bad_argument_count_2(self):
         c = self.new_client()
         c.send('get_metadata')  # Sin argumentos
         status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.INVALID_ARGUMENTS,
-            "El servidor no contestó 201 ante una lista de argumentos "
-            "muy corta")
+        self.assertEqual(status, constants.INVALID_ARGUMENTS,
+                         "El servidor no contestó 201 ante una lista de argumentos "
+                         "muy corta")
         c.close()
 
     def test_bad_argument_type(self):
@@ -233,22 +214,17 @@ class TestHFTPErrors(TestBase):
         c = self.new_client()
         c.send('get_slice bar x x')  # Los argumentos deberían ser enteros
         status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.INVALID_ARGUMENTS,
-            "El servidor no contestó 201 ante una lista de argumentos "
-            "mal tipada (status=%d)" %
-            status)
+        self.assertEqual(status, constants.INVALID_ARGUMENTS,
+                         "El servidor no contestó 201 ante una lista de argumentos "
+                         "mal tipada (status=%d)" % status)
         c.close()
 
     def test_file_not_found(self):
         c = self.new_client()
         c.send('get_metadata does_not_exist')
         status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.FILE_NOT_FOUND,
-            "El servidor no contestó 202 ante un archivo inexistente")
+        self.assertEqual(status, constants.FILE_NOT_FOUND,
+                         "El servidor no contestó 202 ante un archivo inexistente")
         c.close()
 
 
@@ -260,11 +236,8 @@ class TestHFTPHard(TestBase):
             c.s.send(ch.encode("ascii"))
             os.system('sleep 1')  # Despaciiiiiiiiiiito
         status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.CODE_OK,
-            "El servidor no entendio un quit enviado de a un caracter por vez")
-        c.close()
+        self.assertEqual(status, constants.CODE_OK,
+                         "El servidor no entendio un quit enviado de a un caracter por vez")
 
     def test_multiple_commands(self):
         c = self.new_client()
@@ -277,7 +250,7 @@ class TestHFTPHard(TestBase):
                          "El servidor no entendio muchos mensajes correctos "
                          "enviados juntos")
         c.connected = False
-        c.close()
+        c.s.close()
 
     def test_big_file(self):
         self.output_file = 'bar'
@@ -294,9 +267,8 @@ class TestHFTPHard(TestBase):
         f = open(self.output_file, "rb")
         for i in range(1, 255):
             s = f.read(2 ** 17)  # 128 KB
-            self.assertEqual(s,
-                             bytes([i]) * (2 ** 17),
-                             "El contenido del archivo no es el correcto")
+            self.assertEqual(
+                s, bytes([i]) * (2 ** 17), "El contenido del archivo no es el correcto")
         f.close()
         c.close()
 
@@ -306,12 +278,9 @@ class TestHFTPHard(TestBase):
         # Le damos 4 minutos a esto
         status, message = c.read_response_line(TIMEOUT * 6)
         # Le damos un rato mas
-        self.assertEqual(
-            status,
-            constants.FILE_NOT_FOUND,
-            "El servidor no contestó 202 ante un archivo inexistente con "
-            "nombre muy largo (status=%d)" %
-            status)
+        self.assertEqual(status, constants.FILE_NOT_FOUND,
+                         "El servidor no contestó 202 ante un archivo inexistente con "
+                         "nombre muy largo (status=%d)" % status)
         c.close()
 
     def test_data_with_nulls(self):
@@ -357,12 +326,10 @@ def main():
     global DATADIR
     parser = optparse.OptionParser()
     parser.set_usage("%prog [opciones] [clases de tests]")
-    parser.add_option(
-        '-d',
-        '--datadir',
-        help="Directorio donde genera los datos; "
-        "CUIDADO: CORRER LOS TESTS *BORRA* LOS DATOS EN ESTE DIRECTORIO",
-        default=DATADIR)
+    parser.add_option('-d', '--datadir',
+                      help="Directorio donde genera los datos; "
+                      "CUIDADO: CORRER LOS TESTS *BORRA* LOS DATOS EN ESTE DIRECTORIO",
+                      default=DATADIR)
     options, args = parser.parse_args()
     DATADIR = options.datadir
     # Correr tests
