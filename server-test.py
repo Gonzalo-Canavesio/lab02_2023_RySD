@@ -245,10 +245,13 @@ class TestHFTPHard(TestBase):
             'get_file_listing\r\nget_file_listing\r\n'.encode("ascii"))
         assert l == len(
             'get_file_listing\r\nget_file_listing\r\n'.encode("ascii"))
-        status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(status, constants.CODE_OK,
-                         "El servidor no entendio muchos mensajes correctos "
-                         "enviados juntos")
+        for i in range(2):
+            status, message = c.read_response_line(TIMEOUT)
+            self.assertEqual(status, constants.CODE_OK,
+                            "El servidor no entendio muchos mensajes correctos "
+                            "enviados juntos")
+            c.read_line(TIMEOUT)
+        
         c.connected = False
         c.s.close()
 
@@ -312,12 +315,140 @@ class TestHFTPHard(TestBase):
                          "La lista de 1000 archivos no es la correcta")
         c.close()
 
+class TestHFTPCustom(TestBase):
+
+    def test_filename_with_spaces(self):
+        self.output_file = 'bar bar'
+        test_data = 'The quick brown fox jumped over the lazy dog'
+        f = open(os.path.join(DATADIR, self.output_file), 'w')
+        f.write(test_data)
+        f.close()
+        c = self.new_client()
+        c.send('get_metadata ' + self.output_file)
+        status, message = c.read_response_line(TIMEOUT)
+        self.assertEqual(status, constants.INVALID_ARGUMENTS,
+                         "El servidor no contestó 201 ante un nombre de argumento invalido")
+        c.close()
+
+
+    def test_invalid_filename(self):
+        self.output_file = 'bar?$ola'
+        test_data = 'The quick brown fox jumped over the lazy dog'
+        f = open(os.path.join(DATADIR, self.output_file), 'w')
+        f.write(test_data)
+        f.close()
+        c = self.new_client()
+        c.send('get_metadata ' + self.output_file)
+        status, message = c.read_response_line(TIMEOUT)
+        self.assertEqual(status, constants.INVALID_ARGUMENTS,
+                         "El servidor no contestó 201 ante un nombre de argumento invalido")
+        c.close()
+
+    def test_get_incorrect_slice(self):
+        self.output_file = 'bar'
+        test_data = 'The quick brown fox jumped over the lazy dog'
+        f = open(os.path.join(DATADIR, self.output_file), 'w')
+        f.write(test_data)
+        f.close()
+        c = self.new_client()
+        c.send('get_slice ' + self.output_file + ' 0 ' + str(1+len(test_data)))
+        status, message = c.read_response_line(TIMEOUT)
+        self.assertEqual(status, constants.BAD_OFFSET,
+                         "El servidor no contestó 203 ante un offset invalido")
+        c.close()
+
+    def test_get_incorrect_slice2(self):
+        self.output_file = 'bar'
+        test_data = 'The quick brown fox jumped over the lazy dog'
+        f = open(os.path.join(DATADIR, self.output_file), 'w')
+        f.write(test_data)
+        f.close()
+        c = self.new_client()
+        c.send('get_slice ' + self.output_file + ' 1 ' + str(len(test_data)))
+        status, message = c.read_response_line(TIMEOUT)
+        self.assertEqual(status, constants.BAD_OFFSET,
+                         "El servidor no contestó 203 ante un offset invalido")
+        c.close()
+
+    def test_troll_message(self):
+        c = self.new_client()
+        c.s.send('\r\n\r\n\r\n\r\n\r\n\r\n\r\n'.encode("ascii"))
+        try:
+            status, message = c.read_response_line(TIMEOUT)
+        except socket.timeout:
+            pass
+        c.close()
+        self.assertEqual(c.status, constants.CODE_OK)
+
+    def test_multiple_commands2(self):
+        self.output_file = 'bar'
+        test_data = 'The quick brown fox jumped over the lazy dog'
+        f = open(os.path.join(DATADIR, self.output_file), 'w')
+        f.write(test_data)
+        f.close()
+        c = self.new_client()
+        l = c.s.send(
+            f'get_file_listing\r\nget_file_listing\r\nget_file_listing\r\nget_metadata {self.output_file}\r\nget_slice {self.output_file} 0 {len(test_data)}\r\n'.encode("ascii"))
+        assert l == len(
+            f'get_file_listing\r\nget_file_listing\r\nget_file_listing\r\nget_metadata {self.output_file}\r\nget_slice {self.output_file} 0 {len(test_data)}\r\n'.encode("ascii"))
+        for i in range(3):
+            status, message = c.read_response_line(TIMEOUT)
+            c.read_line()
+            c.read_line()
+            self.assertEqual(status, constants.CODE_OK,
+                            "El servidor no entendio muchos mensajes correctos "
+                            "enviados juntos")
+        for i in range(2):
+            status, message = c.read_response_line(TIMEOUT)
+            c.read_line(TIMEOUT)
+            self.assertEqual(status, constants.CODE_OK,
+                            "El servidor no entendio muchos mensajes correctos "
+                            "enviados juntos")        
+        c.close()
+
+
+class TestHFTPCustomErrorFeo(TestBase):
+        
+    def test_close_connection_before_get_response(self):
+        self.output_file = 'bar'
+        f = open(os.path.join(DATADIR, self.output_file), 'wb')
+        for i in range(1, 255):
+            f.write(bytes([i]) * (2 ** 17))  # 128KB
+        f.close()
+
+        c = self.new_client()
+        size = c.get_metadata(self.output_file)
+        l = c.s.send(f'get_slice {self.output_file} 0 {size}\r\n'.encode("ascii"))
+        c.connected = False
+        c.s.close()
+        # El servidor debería seguir abierto y no dar problemas luego de ejecutar este test
+        time.sleep(1)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+        s.send('quit\r\n'.encode("ascii"))
+        w, _, __ = select.select([s], [], [], TIMEOUT)
+        self.assertEqual(w, [s],
+                        "Se envió quit, no hubo respuesta en %0.1f segundos" % TIMEOUT)
+        # Medio segundo más par
+        start = time.process_time()
+        got = s.recv(1024)
+        while got and time.process_time() - start <= 0.5:
+            r, w, e = select.select([s], [], [], 0.5)
+            self.assertEqual(r, [s], "Luego de la respuesta de quit, la "
+                            "conexión se mantuvo activa por más "
+                            "de 0.5 segundos")
+            got = s.recv(1024)
+        # Se desconectó?
+        self.assertTrue(not got)
+        s.close()
 
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestHFTPServer))
     suite.addTest(unittest.makeSuite(TestHFTPErrors))
     suite.addTest(unittest.makeSuite(TestHFTPHard))
+    suite.addTest(unittest.makeSuite(TestHFTPCustom))
+    suite.addTest(unittest.makeSuite(TestHFTPCustomErrorFeo))
     return suite
 
 
