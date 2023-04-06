@@ -12,7 +12,7 @@ import connection
 from constants import *
 import sys
 import os
-
+import threading
 
 class Server(object):
     """
@@ -53,7 +53,7 @@ class Server(object):
         Loop principal del servidor. Se acepta una conexión a la vez
         y se espera a que concluya antes de seguir.
         """
-        self.socket.listen()
+        self.socket.listen(5)
 
         while True:
             # Bloquea la ejecución hasta que se recibe una conexión entrante
@@ -61,7 +61,11 @@ class Server(object):
             # Crea un objeto Connection para manejar la conexión entrante
             cn = connection.Connection(cnSocket, self.directory)
             print(f"Connected by: {cnAdress}")
-            cn.handle()  # Atiende la conexión entrante
+            # Creamos un nuevo hilo para manejar la conexión entrante
+            t = threading.Thread(target=cn.handle)
+            t.start()
+
+
 
 
 # Esta función main() es el punto de entrada del programa que lanza un servidor que utiliza el protocolo de transferencia de archivos casero HFTP
