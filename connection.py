@@ -187,7 +187,6 @@ class Connection(object):
             print(f"Error in connection handling: {e}")
             self.contact(mtext(BAD_REQUEST) + EOL)
             self.active = False
-            print(f"Closing connection...")
 
     def handle(self):
         """
