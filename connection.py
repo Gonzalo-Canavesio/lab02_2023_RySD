@@ -140,12 +140,13 @@ class Connection(object):
             if offset < 0 or offset + size > file_size:
                 self.header(BAD_OFFSET)
             # Abrir el archivo en modo lectura binario "rb", 'r' se abrira el archivo en modo lectura y 'b' se abrira en modo binario
-            with open(filepath, "rb") as f:
-                # Lee el slice del archivo especificado, empezando desde el offset y leyendo size bytes
-                f.seek(offset)
-                slice_data = f.read(size)
-                self.header(CODE_OK)
-                self.send(slice_data, codif="b64encode")
+            else: 
+                with open(filepath, "rb") as f:
+                    # Lee el slice del archivo especificado, empezando desde el offset y leyendo size bytes
+                    f.seek(offset)
+                    slice_data = f.read(size)
+                    self.header(CODE_OK)
+                    self.send(slice_data, codif="b64encode")
 
     def quit(self):
         self.header(CODE_OK)
