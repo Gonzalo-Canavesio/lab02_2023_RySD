@@ -38,7 +38,7 @@ class Server(object):
                 print("No se pudo crear el directorio %s." % directory)
                 sys.exit(1)
 
-        print("Serving %s on %s:%s." % (directory, addr, port))
+        print(f"Serving \"{directory}\" directory on {addr}:{port}.")
 
         # Se crea el socket y se lo vincula a la dirección y puerto
         oursocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -60,6 +60,7 @@ class Server(object):
             (cnSocket, cnAdress) = self.socket.accept()
             # Crea un objeto Connection para manejar la conexión entrante
             cn = connection.Connection(cnSocket, self.directory)
+            print(f"Connected by: {cnAdress}")
             cn.handle()  # Atiende la conexión entrante
 
 

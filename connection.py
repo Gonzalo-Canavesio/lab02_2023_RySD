@@ -25,11 +25,22 @@ class Connection(object):
             directory: Directorio raíz de los archivos que se compartirán con el cliente.
         """
         self.directory = directory
-        self.socket = socket
-        self.active = True
-        self.bof = ""
+        self.s = socket
+        self.connected = True
+        self.buffer = ""
 
-    def contact(self, msj: bytes or str, codif="ascii"):
+    def close(self):
+        """
+        Cierra la conexión.
+        """
+        print("Closing connection...")
+        self.connected = False
+        try:
+            self.s.close()
+        except socket.error:
+            pass  # Seguramente ya se desconecto del otro lado
+
+    def send(self, message: bytes or str, codif="ascii"):
         """
         Envia un mensaje a través del socket de la conexión.
 
@@ -40,54 +51,75 @@ class Connection(object):
         Raises:
             ValueError: Si se especifica una codificación inválida.
         """
-        # se va enviar el mensaje y se fija en codifi ya que es la codificacion que va a usar
+        # Verifica y aplica la codificación a utilizar
         if codif == "ascii":
-            msj = msj.encode("ascii")
+            message = message.encode("ascii")
         elif codif == "b64encode":
-            msj = b64encode(msj)
+            message = b64encode(message)
         else:
-            # excepción de tipo ValueError cuando hay un valor invalido en codif
-            raise ValueError(f"send: Invalid instance '{codif}'")
-        # se encarga de enviar el mensaje a través del socket en trozos hasta que se haya enviado todo el mensaje
-        try:
-            while len(msj) > 0:
-                sent = self.socket.send(msj)
-                msj = msj[sent:]
-        except BrokenPipeError:
-            print("La conexión ya está cerrada.")       
+            raise ValueError(f"send: codificación inválida '{codif}'")
+        # Envía el mensaje
+        while message:
+            bytes_sent = self.s.send(message)
+            assert bytes_sent > 0
+            message = message[bytes_sent:]
+        self.s.send(EOL.encode("ascii")) # Envía el fin de línea
 
+    def header(self, cod: int):
+        """
+        Envia el encabezado de respuesta al cliente y maneja los errores fatales.
 
-    def quit(self):
-        rta = mtext(CODE_OK) + EOL
-        self.contact(rta)
-        # desactivo la conexion
-        self.active = False
+        Args:
+            cod: Código de respuesta a enviar.
+        """
+        if(fatal_status(cod)):
+            self.send(f"{cod} {error_messages[cod]}")
+            self.close()
+        else:
+            self.send(f"{cod} {error_messages[cod]}")
+
+    def valid_file(self, filename: str):
+        """
+        Verifica si el nombre de archivo es valido y si el archivo existe
+        Returns:
+            CODE_OK si el archivo existe y es valido
+            INVALID_ARGUMENTS si el nombre del archivo no es valido
+            FILE_NOT_FOUND si el archivo no existe
+        """
+        # Obtiene los caracteres del nombre del archivo que no pertenecen al conjunto VALID_CHARS
+        aux = set(filename) - VALID_CHARS
+        if (os.path.isfile(os.path.join(self.directory, filename)) and len(aux) == 0):
+            return CODE_OK
+        elif (len(aux) != 0):
+            return INVALID_ARGUMENTS
+        else:
+            return FILE_NOT_FOUND
 
     def get_file_listing(self):
         """
-        Obtiene la lista de archivos disponibles en el directorio y la envía al cliente.
+        Obtiene la lista de archivos disponibles en el directorio y la envía al cliente
         """
-
-        rta = EOL
-        # obtengo la lista de archivos disponibles en el directorio
+        rta = ""
+        # Itero sobre la lista de archivos disponibles en el directorio
         for fil in os.listdir(self.directory):
-            # voy agregando los archvios a la cadena de respuesta con \r\n al final
+            # Agrego los archvios a la cadena de respuesta
             rta += fil + EOL
-
-        self.contact(mtext(CODE_OK) + rta + EOL)
+        self.header(CODE_OK)
+        self.send(rta)
 
     def get_metadata(self, filename: str):
         """
-        Obtiene el tamaño de un archivo y lo envía al cliente.
+        Obtiene el tamaño de un archivo y lo envía al cliente
         """
-        # nos fijamos si no es un arhivo la os.path.join forma una ruta completa con self.directory y el archivo filename y dsp ve si es un archivo que existe
-        if not (os.path.isfile(os.path.join(self.directory, filename))):
-            self.contact(mtext(FILE_NOT_FOUND) + EOL)
-
+        # Se verifica si es un archivo valido
+        if self.valid_file(filename) != CODE_OK:
+            # Se envia el mensaje de error correspondiente por no ser un archivo valido
+            self.header(self.valid_file(filename))
         else:
-            # devuelve el tamaño en bytes de un archivo en el camino especificado
-            size = os.path.getsize(os.path.join(self.directory, filename))
-            self.contact(mtext(CODE_OK) + EOL + str(size) + EOL)
+            # Se obtiene el tamaño del archivo y se envia al cliente
+            file_size = os.path.getsize(os.path.join(self.directory, filename))
+            self.header(CODE_OK)
+            self.send(str(file_size))
 
     def get_slice(self, filename: str, offset: int, size: int):
         """
@@ -98,60 +130,26 @@ class Connection(object):
             offset (int): El byte de inicio del slice.
             size (int): El tamaño del slice.
         """
-        filepath = os.path.join(self.directory, filename)
-        if not os.path.isfile(filepath):  # existe archivo?
-            rta = mtext(FILE_NOT_FOUND) + EOL
-            self.contact(rta)
+        # Se verifica si es un archivo valido
+        if self.valid_file(filename) != CODE_OK:
+            # Se envia el mensaje de error correspondiente por no ser un archivo valido
+            self.header(self.valid_file(filename))
         else:
+            filepath = os.path.join(self.directory, filename)
             file_size = os.path.getsize(filepath)
             if offset < 0 or offset + size > file_size:
-                rta = mtext(BAD_OFFSET) + EOL  # error con el offset
-                self.contact(rta)
-            self.contact(mtext(CODE_OK) + EOL)
+                self.header(BAD_OFFSET)
             # Abrir el archivo en modo lectura binario "rb", 'r' se abrira el archivo en modo lectura y 'b' se abrira en modo binario
             with open(filepath, "rb") as f:
-                # lee el slice del archivo especificado, empezando desde el offset
+                # Lee el slice del archivo especificado, empezando desde el offset y leyendo size bytes
                 f.seek(offset)
-                # y leyendo el tamaño especificado
                 slice_data = f.read(size)
-                # Codifica el slice en base64
-                self.contact(slice_data, codif="b64encode")
-            self.contact(EOL)
+                self.header(CODE_OK)
+                self.send(slice_data, codif="b64encode")
 
-    def _recv(self):
-        """
-        Recibe datos y acumula en el buffer interno.
-
-        Para uso privado del cliente.
-        """
-
-        try:
-            data = self.socket.recv(4096).decode("ascii")
-            self.bof += data
-
-            if len(data) == 0:
-                self.active = False
-        except ConnectionResetError:
-            self.contact(mtext(INTERNAL_ERROR) + EOL)
-            self.active = False
-            print(f"closing connection")
-            
-
-    def read_line(self):
-        """
-        Espera datos hasta obtener una línea completa delimitada por el
-        terminador del protocolo.
-
-        Devuelve la línea, eliminando el terminaodr y los espacios en blanco
-        al principio y al final.
-        """
-        while EOL not in self.bof and self.active:
-            self._recv()
-        if EOL in self.bof:
-            response, self.bof = self.bof.split(EOL, 1)
-            return response.strip()
-        else:
-            return ""
+    def quit(self):
+        self.header(CODE_OK)
+        self.close()
 
     def command_selector(self, line):
         """
@@ -161,54 +159,83 @@ class Connection(object):
             line (str): La línea recibida.
         """
         try:
+            print("Request: " + line)
             cmd, *args = line.split(" ")
             if cmd == "get_file_listing":
                 if len(args) == 0:
                     self.get_file_listing()
                 else:
-                    self.contact(mtext(INVALID_ARGUMENTS) + EOL)
+                    self.header(INVALID_ARGUMENTS)
             elif cmd == "get_metadata":
                 if len(args) == 1:
                     self.get_metadata(args[0])
                 else:
-                    self.contact(mtext(INVALID_ARGUMENTS) + EOL)
+                    self.header(INVALID_ARGUMENTS)
             elif cmd == "get_slice":
                 try:
                     if len(args) == 3:
                         self.get_slice(args[0], int(args[1]), int(args[2]))
                     else:
-                        self.contact(mtext(INVALID_ARGUMENTS) + EOL)
+                        self.header(INVALID_ARGUMENTS)
                 except ValueError:
-                    self.contact(mtext(INVALID_ARGUMENTS) + EOL)
+                    self.header(INVALID_ARGUMENTS)
             elif cmd == "quit":
                 if len(args) == 0:
                     self.quit()
                 else:
-                    self.contact(mtext(INVALID_ARGUMENTS) + EOL)
+                    self.header(INVALID_ARGUMENTS)
             else:
-                self.contact(mtext(INVALID_COMMAND) + EOL)
+                self.header(INVALID_COMMAND)
+        except ConnectionResetError or BrokenPipeError:
+            self.close()
         except Exception as e:
             print(f"Error in connection handling: {e}")
-            self.contact(mtext(BAD_REQUEST) + EOL)
-            self.active = False
+            self.header(INTERNAL_ERROR)
+
+    def _recv(self):
+        """
+        Recibe datos y acumula en el buffer interno.
+
+        Para uso privado del servidor.
+        """
+        try:
+            data = self.s.recv(4096).decode("ascii")
+            self.buffer += data
+
+            if len(data) == 0:
+                self.close()
+            if len(self.buffer) >= MAX_BUFFER_SIZE:
+                self.header(BAD_REQUEST)
+        except UnicodeError:
+            self.header(BAD_REQUEST)
+        except ConnectionResetError or BrokenPipeError:
+            self.close()
+
+    def read_line(self):
+        """
+        Espera datos hasta obtener una línea completa delimitada por el
+        terminador del protocolo.
+
+        Devuelve la línea, eliminando el terminador y los espacios en blanco
+        al principio y al final.
+        """
+        while not EOL in self.buffer and self.connected:
+            self._recv()
+        if EOL in self.buffer:
+            response, self.buffer = self.buffer.split(EOL, 1)
+            return response.strip()
 
     def handle(self):
         """
         Atiende eventos de la conexión hasta que termina.
         """
-        while self.active:
-            line = self.read_line()
+        line = ""
+        while self.connected:
             if NEWLINE in line:
-                self.contact(mtext(BAD_EOL) + EOL)
-                self.active = False
+                self.header(BAD_EOL)
             elif len(line) > 0:
                 self.command_selector(line)
-            else:
-                self.active = False
-        
-        print(f"Closing connection...")
-        self.socket.close()
+            line = self.read_line()
 
 
-def mtext(cod: int):
-    return f"{cod} {error_messages[cod]}"
+    
