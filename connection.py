@@ -49,9 +49,12 @@ class Connection(object):
             # excepción de tipo ValueError cuando hay un valor invalido en codif
             raise ValueError(f"send: Invalid instance '{codif}'")
         # se encarga de enviar el mensaje a través del socket en trozos hasta que se haya enviado todo el mensaje
-        while len(msj) > 0:
-            sent = self.socket.send(msj)
-            msj = msj[sent:]
+        try:
+            while len(msj) > 0:
+                sent = self.socket.send(msj)
+                msj = msj[sent:]
+        except BrokenPipeError:
+            print("La conexión ya está cerrada.")       
 
 
     def quit(self):
@@ -122,11 +125,17 @@ class Connection(object):
         Para uso privado del cliente.
         """
 
-        data = self.socket.recv(4096).decode("ascii")
-        self.bof += data
+        try:
+            data = self.socket.recv(4096).decode("ascii")
+            self.bof += data
 
-        if len(data) == 0:
+            if len(data) == 0:
+                self.active = False
+        except ConnectionResetError:
+            self.contact(mtext(INTERNAL_ERROR) + EOL)
             self.active = False
+            print(f"closing connection")
+            
 
     def read_line(self):
         """
