@@ -37,8 +37,8 @@ class Connection(object):
         self.connected = False
         try:
             self.s.close()
-        except socket.error:
-            pass  # Seguramente ya se desconecto del otro lado
+        except socket.error as e:
+            print(f"Error closing socket: {e}")  # Seguramente ya se desconecto del otro lado
 
     def send(self, message: bytes or str, codif="ascii"):
         """
@@ -137,7 +137,7 @@ class Connection(object):
         else:
             filepath = os.path.join(self.directory, filename)
             file_size = os.path.getsize(filepath)
-            if offset < 0 or offset + size > file_size:
+            if offset < 0 or offset + size > file_size or size < 0:
                 self.header(BAD_OFFSET)
             # Abrir el archivo en modo lectura binario "rb", 'r' se abrira el archivo en modo lectura y 'b' se abrira en modo binario
             else: 
