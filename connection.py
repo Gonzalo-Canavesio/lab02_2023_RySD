@@ -165,8 +165,8 @@ class Connection(object):
 
     def command_selector(self, line):
         """
-        Selecciona el comando a ejecutar según la línea recibida. 
-        Si la línea no es un comando válido o existe un problema con sus argumentos, 
+        Selecciona el comando a ejecutar según la línea recibida.
+        Si la línea no es un comando válido o existe un problema con sus argumentos,
         se envía el código de error correspondiente.
 
         Args:

@@ -16,7 +16,6 @@ from constants import *
 
 
 class Client(object):
-
     def __init__(self, server=DEFAULT_ADDR, port=DEFAULT_PORT):
         """
         Nuevo cliente, conectado al `server' solicitado en el `port' TCP
@@ -27,7 +26,7 @@ class Client(object):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.status = None
         self.s.connect((server, port))
-        self.buffer = ''
+        self.buffer = ""
         self.connected = True
 
     def close(self):
@@ -35,11 +34,12 @@ class Client(object):
         Desconecta al cliente del server, mandando el mensaje apropiado
         antes de desconectar.
         """
-        self.send('quit')
+        self.send("quit")
         self.status, message = self.read_response_line()
         if self.status != CODE_OK:
-            logging.warning("Warning: quit no contesto ok, sino '%s'(%s)'."
-                            % (message, self.status))
+            logging.warning(
+                "Warning: quit no contesto ok, sino '%s'(%s)'." % (message, self.status)
+            )
         self.connected = False
         self.s.close()
 
@@ -55,8 +55,7 @@ class Client(object):
         self.s.settimeout(timeout)
         message += EOL  # Completar el mensaje con un fin de línea
         while message:
-            logging.debug("Enviando el (resto del) mensaje %s."
-                          % repr(message))
+            logging.debug("Enviando el (resto del) mensaje %s." % repr(message))
             bytes_sent = self.s.send(message.encode("ascii"))
             assert bytes_sent > 0
             message = message[bytes_sent:]
@@ -107,7 +106,7 @@ class Client(object):
         """
         result = None, None
         response = self.read_line(timeout)
-        if ' ' in response:
+        if " " in response:
             code, message = response.split(None, 1)
             try:
                 result = int(code), message
@@ -138,7 +137,7 @@ class Client(object):
         de strings.
         """
         result = []
-        self.send('get_file_listing')
+        self.send("get_file_listing")
         self.status, message = self.read_response_line()
         if self.status == CODE_OK:
             filename = self.read_line()
@@ -147,8 +146,10 @@ class Client(object):
                 result.append(filename)
                 filename = self.read_line()
         else:
-            logging.warning("Falló la solicitud de la lista de archivos" +
-                            "(code=%s %s)." % (self.status, message))
+            logging.warning(
+                "Falló la solicitud de la lista de archivos"
+                + "(code=%s %s)." % (self.status, message)
+            )
 
         return result
 
@@ -157,7 +158,7 @@ class Client(object):
         Obtiene en el server el tamaño del archivo con el nombre dado.
         Devuelve None en caso de error.
         """
-        self.send('get_metadata %s' % filename)
+        self.send("get_metadata %s" % filename)
         self.status, message = self.read_response_line()
         if self.status == CODE_OK:
             size = int(self.read_line())
@@ -170,16 +171,15 @@ class Client(object):
         El archivo es guardado localmente, en el directorio actual, con el
         mismo nombre que tiene en el server.
         """
-        self.send('get_slice %s %d %d' % (filename, start, length))
+        self.send("get_slice %s %d %d" % (filename, start, length))
         self.status, message = self.read_response_line()
         if self.status == CODE_OK:
-            output = open(filename, 'wb')
+            output = open(filename, "wb")
             fragment = self.read_fragment(length)
             output.write(fragment)
             output.close()
         else:
-            logging.warning("El servidor indico un error al leer de %s."
-                            % filename)
+            logging.warning("El servidor indico un error al leer de %s." % filename)
 
     def retrieve(self, filename):
         """
@@ -192,8 +192,9 @@ class Client(object):
         elif self.status == FILE_NOT_FOUND:
             logging.info("El archivo solicitado no existe.")
         else:
-            logging.warning("No se pudo obtener el archivo %s (code=%s)."
-                            % (filename, self.status))
+            logging.warning(
+                "No se pudo obtener el archivo %s (code=%s)." % (filename, self.status)
+            )
 
 
 def main():
@@ -201,26 +202,32 @@ def main():
     Interfaz interactiva simple para el cliente: permite elegir un archivo
     y bajarlo.
     """
-    DEBUG_LEVELS = {'DEBUG': logging.DEBUG,
-                    'INFO': logging.INFO,
-                    'WARN': logging.WARNING,
-                    'ERROR': logging.ERROR,
-                    }
+    DEBUG_LEVELS = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARN": logging.WARNING,
+        "ERROR": logging.ERROR,
+    }
 
     # Parsear argumentos
     parser = optparse.OptionParser(usage="%prog [options] server")
-    parser.add_option("-p", "--port",
-                      help="Numero de puerto TCP donde escuchar", default=DEFAULT_PORT)
-    parser.add_option("-v", "--verbose", dest="level", action="store",
-                      help="Determina cuanta informacion de depuracion a mostrar"
-                      "(valores posibles son: ERROR, WARN, INFO, DEBUG)",
-                      default="ERROR")
+    parser.add_option(
+        "-p", "--port", help="Numero de puerto TCP donde escuchar", default=DEFAULT_PORT
+    )
+    parser.add_option(
+        "-v",
+        "--verbose",
+        dest="level",
+        action="store",
+        help="Determina cuanta informacion de depuracion a mostrar"
+        "(valores posibles son: ERROR, WARN, INFO, DEBUG)",
+        default="ERROR",
+    )
     options, args = parser.parse_args()
     try:
         port = int(options.port)
     except ValueError:
-        sys.stderr.write("Numero de puerto invalido: %s\n"
-                         % repr(options.port))
+        sys.stderr.write("Numero de puerto invalido: %s\n" % repr(options.port))
         parser.print_help()
         sys.exit(1)
 
@@ -234,13 +241,15 @@ def main():
 
     try:
         client = Client(args[0], port)
-    except(socket.error, socket.gaierror):
+    except (socket.error, socket.gaierror):
         sys.stderr.write("Error al conectarse\n")
         sys.exit(1)
 
-    print("* Bienvenido al cliente HFTP - "
-          "the Home-made File Transfer Protocol *\n"
-          "* Estan disponibles los siguientes archivos:")
+    print(
+        "* Bienvenido al cliente HFTP - "
+        "the Home-made File Transfer Protocol *\n"
+        "* Estan disponibles los siguientes archivos:"
+    )
 
     files = client.file_lookup()
 
@@ -254,5 +263,5 @@ def main():
     client.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
