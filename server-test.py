@@ -442,6 +442,124 @@ class TestHFTPCustomErrorFeo(TestBase):
         self.assertTrue(not got)
         s.close()
 
+class TestHFTPCustomMultipleClients(TestBase):
+    def test_2_clients1(self):
+        self.output_file = 'bar'
+        test_data = 'The quick brown fox jumped over the lazy dog'
+        f = open(os.path.join(DATADIR, self.output_file), 'w')
+        f.write(test_data)
+        f.close()
+        s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s1.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+        s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s2.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+
+
+        s1.send('get_file_listing\r\n'.encode("ascii"))
+        s2.send('get_file_listing\r\n'.encode("ascii"))
+
+        data1 = s1.recv(1024).decode("ascii")
+        data2 = s2.recv(1024).decode("ascii")
+        self.assertEqual(data1[0], "0")
+        self.assertEqual(data2[0], "0")
+        s1.close()
+        s2.close()
+
+    def test_2_clients2(self):
+        self.output_file = 'bar'
+        test_data = 'The quick brown fox jumped over the lazy dog'
+        f = open(os.path.join(DATADIR, self.output_file), 'w')
+        f.write(test_data)
+        f.close()
+        s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s1.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+        s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s2.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+
+        s1.send('get_file_listing\r\n'.encode("ascii"))
+        s2.send(('get_metadata ' + self.output_file+'\r\n').encode("ascii"))
+        data1 = s1.recv(1024).decode("ascii")
+        data2 = s2.recv(1024).decode("ascii")
+        self.assertEqual(data1[0], "0")
+        self.assertEqual(data2[0], "0")
+        s1.close()
+        s2.close()
+
+    def test_multiple_clients(self):
+        self.output_file = 'bar'
+        test_data = 'The quick brown fox jumped over the lazy dog'
+        f = open(os.path.join(DATADIR, self.output_file), 'w')
+        f.write(test_data)
+        f.close()
+        cc = self.new_client()
+        cc.send('get_file_listing')
+        status, message = cc.read_response_line(TIMEOUT)
+        self.assertEqual(status, constants.CODE_OK)
+        cc.read_line(TIMEOUT)
+        cc.read_line(TIMEOUT)
+        clients = []
+        for i in range(20):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+            s.send('get_file_listing\r\n'.encode("ascii"))
+            clients.append(s)
+        for s in clients:
+            message = s.recv(1024).decode("ascii")
+            self.assertEqual(message[0], "0")
+            s.send('quit\r\n'.encode("ascii"))
+            message = s.recv(1024).decode("ascii")
+            s.close()
+        cc.send('get_file_listing')
+        status, message = cc.read_response_line(TIMEOUT)
+        self.assertEqual(status, constants.CODE_OK)
+        cc.read_line(TIMEOUT)
+        cc.read_line(TIMEOUT)
+        cc.close()
+
+    def test_multiple_clients_with_fatal_error(self):
+        s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s1.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+        s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s2.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+
+        s1.send('get_file_listing\r\n'.encode("ascii"))
+        s2.send('get_fi\nle_listing\r\n'.encode("ascii"))
+        data1 = s1.recv(1024).decode("ascii")
+        data2 = s2.recv(1024).decode("ascii")
+        self.assertEqual(data1[0], "0")
+        self.assertEqual(data2[0:3], "100")
+        s1.send('quit\r\n'.encode("ascii"))
+        data = s1.recv(1024).decode("ascii")
+        data1 += data
+        while data != "":
+            data = s1.recv(1024).decode("ascii")
+            data1 += data
+        self.assertEqual(data1[-6], "0")
+        s1.close()
+        s2.close()
+        
+    def test_multiple_clients_with_nofatal_error(self):
+        s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s1.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+        s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s2.connect((constants.DEFAULT_ADDR, constants.DEFAULT_PORT))
+
+        s1.send('get_file_listing\r\n'.encode("ascii"))
+        s2.send('get_metadata UwU\r\n'.encode("ascii"))
+        data1 = s1.recv(1024).decode("ascii")
+        data2 = s2.recv(1024).decode("ascii")
+        self.assertEqual(data1[0], "0")
+        self.assertEqual(data2[0:3], "202")
+        s1.send('quit\r\n'.encode("ascii"))
+        data = s1.recv(1024).decode("ascii")
+        data1 += data
+        while data != "":
+            data = s1.recv(1024).decode("ascii")
+            data1 += data
+        self.assertEqual(data1[-6], "0")
+        s1.close()
+        s2.close()              
+
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestHFTPServer))
@@ -449,6 +567,7 @@ def suite():
     suite.addTest(unittest.makeSuite(TestHFTPHard))
     suite.addTest(unittest.makeSuite(TestHFTPCustom))
     suite.addTest(unittest.makeSuite(TestHFTPCustomErrorFeo))
+    suite.addTest(unittest.makeSuite(TestHFTPCustomMultipleClients))
     return suite
 
 
