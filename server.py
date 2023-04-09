@@ -14,6 +14,7 @@ import sys
 import os
 import threading
 
+
 class Server(object):
     """
     El servidor, que crea y atiende el socket en la dirección y puerto
@@ -38,7 +39,7 @@ class Server(object):
                 print("No se pudo crear el directorio %s." % directory)
                 sys.exit(1)
 
-        print(f"Serving \"{directory}\" directory on {addr}:{port}.")
+        print(f'Serving "{directory}" directory on {addr}:{port}.')
 
         # Se crea el socket y se lo vincula a la dirección y puerto
         oursocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -53,6 +54,7 @@ class Server(object):
         Loop principal del servidor. Se acepta una conexión a la vez
         y se espera a que concluya antes de seguir.
         """
+        # Escucha conexiones entrantes con un máximo de 5 conexiones en cola
         self.socket.listen(5)
 
         while True:
@@ -64,8 +66,6 @@ class Server(object):
             # Creamos un nuevo hilo para manejar la conexión entrante
             t = threading.Thread(target=cn.handle)
             t.start()
-
-
 
 
 # Esta función main() es el punto de entrada del programa que lanza un servidor que utiliza el protocolo de transferencia de archivos casero HFTP

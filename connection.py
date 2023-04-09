@@ -38,7 +38,8 @@ class Connection(object):
         try:
             self.s.close()
         except socket.error as e:
-            print(f"Error closing socket: {e}")  # Seguramente ya se desconecto del otro lado
+            # Seguramente ya se desconecto del otro lado
+            print(f"Error closing socket: {e}")
 
     def send(self, message: bytes or str, codif="ascii"):
         """
@@ -63,16 +64,16 @@ class Connection(object):
             bytes_sent = self.s.send(message)
             assert bytes_sent > 0
             message = message[bytes_sent:]
-        self.s.send(EOL.encode("ascii")) # Envía el fin de línea
+        self.s.send(EOL.encode("ascii"))  # Envía el fin de línea
 
     def header(self, cod: int):
         """
-        Envia el encabezado de respuesta al cliente y maneja los errores fatales.
+        Envia el encabezado de respuesta al cliente y cierra la conexión en los errores fatales.
 
         Args:
             cod: Código de respuesta a enviar.
         """
-        if(fatal_status(cod)):
+        if fatal_status(cod):
             self.send(f"{cod} {error_messages[cod]}")
             self.close()
         else:
@@ -81,16 +82,20 @@ class Connection(object):
     def valid_file(self, filename: str):
         """
         Verifica si el nombre de archivo es valido y si el archivo existe
+
+        Args:
+            filename (str): El nombre del archivo a verificar.
+
         Returns:
-            CODE_OK si el archivo existe y es valido
-            INVALID_ARGUMENTS si el nombre del archivo no es valido
-            FILE_NOT_FOUND si el archivo no existe
+            CODE_OK si el archivo existe y es valido.
+            INVALID_ARGUMENTS si el nombre del archivo no es valido.
+            FILE_NOT_FOUND si el archivo no existe.
         """
         # Obtiene los caracteres del nombre del archivo que no pertenecen al conjunto VALID_CHARS
         aux = set(filename) - VALID_CHARS
-        if (os.path.isfile(os.path.join(self.directory, filename)) and len(aux) == 0):
+        if os.path.isfile(os.path.join(self.directory, filename)) and len(aux) == 0:
             return CODE_OK
-        elif (len(aux) != 0):
+        elif len(aux) != 0:
             return INVALID_ARGUMENTS
         else:
             return FILE_NOT_FOUND
@@ -110,6 +115,9 @@ class Connection(object):
     def get_metadata(self, filename: str):
         """
         Obtiene el tamaño de un archivo y lo envía al cliente
+
+        Args:
+            filename (str): El nombre del archivo del que se va a obtener el tamaño.
         """
         # Se verifica si es un archivo valido
         if self.valid_file(filename) != CODE_OK:
@@ -140,7 +148,7 @@ class Connection(object):
             if offset < 0 or offset + size > file_size or size < 0:
                 self.header(BAD_OFFSET)
             # Abrir el archivo en modo lectura binario "rb", 'r' se abrira el archivo en modo lectura y 'b' se abrira en modo binario
-            else: 
+            else:
                 with open(filepath, "rb") as f:
                     # Lee el slice del archivo especificado, empezando desde el offset y leyendo size bytes
                     f.seek(offset)
@@ -149,12 +157,17 @@ class Connection(object):
                     self.send(slice_data, codif="b64encode")
 
     def quit(self):
+        """
+        Cierra la conexión con el cliente y enviar el código de respuesta correspondiente.
+        """
         self.header(CODE_OK)
         self.close()
 
     def command_selector(self, line):
         """
-        Selecciona el comando a ejecutar según la línea recibida.
+        Selecciona el comando a ejecutar según la línea recibida. 
+        Si la línea no es un comando válido o existe un problema con sus argumentos, 
+        se envía el código de error correspondiente.
 
         Args:
             line (str): La línea recibida.
@@ -237,6 +250,3 @@ class Connection(object):
             elif len(line) > 0:
                 self.command_selector(line)
             line = self.read_line()
-
-
-    
