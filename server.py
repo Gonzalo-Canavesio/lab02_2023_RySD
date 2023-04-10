@@ -68,10 +68,10 @@ class Server(object):
             t.start()
 
 
-# Esta función main() es el punto de entrada del programa que lanza un servidor que utiliza el protocolo de transferencia de archivos casero HFTP
+# Punto de entrada del programa que lanza un servidor con protocolo HFTP
 def main():
     """Parsea los argumentos y lanza el server"""
-    # configurar la dirección IP, el número de puerto y el directorio compartido del servidor
+    # Configurar direccion IP, número de puerto y directorio compartido del servidor
     parser = optparse.OptionParser()
     parser.add_option(
         "-p", "--port", help="Número de puerto TCP donde escuchar", default=DEFAULT_PORT
@@ -82,8 +82,7 @@ def main():
     parser.add_option(
         "-d", "--datadir", help="Directorio compartido", default=DEFAULT_DIR
     )
-    # Verifica si hay argumentos adicionales después de las opciones.
-    # Si se proporcionan argumentos adicionales, muestra la ayuda del programa y sale del programa.
+    # Si se proporcionan argumentos extra, imprime la ayuda y sale del programa.
     options, args = parser.parse_args()
     if len(args) > 0:
         parser.print_help()
@@ -95,9 +94,9 @@ def main():
         sys.stderr.write("Numero de puerto invalido: %s\n" % repr(options.port))
         parser.print_help()
         sys.exit(1)
-    # Crea un objeto servidor utilizando la dirección IP, el número de puerto y el directorio compartido especificados.
+    # Crea un objeto servidor con IP, número de puerto y directorio especificados.
     server = Server(options.address, port, options.datadir)
-    # Llama al método serve() en el objeto servidor para que comience a escuchar conexiones entrantes.
+    # Llama al método serve() para comenzar a escuchar conexiones entrantes.
     server.serve()
 
 

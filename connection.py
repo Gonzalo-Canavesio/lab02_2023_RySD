@@ -68,7 +68,8 @@ class Connection(object):
 
     def header(self, cod: int):
         """
-        Envia el encabezado de respuesta al cliente y cierra la conexión en los errores fatales.
+        Envia el encabezado de respuesta al cliente y 
+        cierra la conexión en los errores fatales.
 
         Args:
             cod: Código de respuesta a enviar.
@@ -91,7 +92,7 @@ class Connection(object):
             INVALID_ARGUMENTS si el nombre del archivo no es valido.
             FILE_NOT_FOUND si el archivo no existe.
         """
-        # Obtiene los caracteres del nombre del archivo que no pertenecen al conjunto VALID_CHARS
+        # Obtiene los caracteres del nombre del archivo que no pertenecen a VALID_CHARS
         aux = set(filename) - VALID_CHARS
         if os.path.isfile(os.path.join(self.directory, filename)) and len(aux) == 0:
             return CODE_OK
@@ -131,7 +132,8 @@ class Connection(object):
 
     def get_slice(self, filename: str, offset: int, size: int):
         """
-        Obtiene un slice del archivo especificado y lo envía al cliente en formato base64.
+        Obtiene un slice del archivo especificado y 
+        lo envía al cliente en formato base64.
 
         Args:
             filename (str): El nombre del archivo del que se va a obtener el slice.
@@ -147,10 +149,11 @@ class Connection(object):
             file_size = os.path.getsize(filepath)
             if offset < 0 or offset + size > file_size or size < 0:
                 self.header(BAD_OFFSET)
-            # Abrir el archivo en modo lectura binario "rb", 'r' se abrira el archivo en modo lectura y 'b' se abrira en modo binario
+            # Abrir el archivo en modo lectura binario "rb"
+            # 'r' se abrira el archivo en modo lectura y 'b' se abrira en modo binario
             else:
                 with open(filepath, "rb") as f:
-                    # Lee el slice del archivo especificado, empezando desde el offset y leyendo size bytes
+                    # Lee el slice del archivo especificado, inicia en offset y lee size bytes
                     f.seek(offset)
                     slice_data = f.read(size)
                     self.header(CODE_OK)
@@ -158,7 +161,7 @@ class Connection(object):
 
     def quit(self):
         """
-        Cierra la conexión con el cliente y enviar el código de respuesta correspondiente.
+        Cierra conexión con el cliente y envia el código de respuesta correspondiente.
         """
         self.header(CODE_OK)
         self.close()
@@ -230,8 +233,7 @@ class Connection(object):
         Espera datos hasta obtener una línea completa delimitada por el
         terminador del protocolo.
 
-        Devuelve la línea, eliminando el terminador y los espacios en blanco
-        al principio y al final.
+        Devuelve la línea sin el terminador ni espacios en blanco al inicio o final.
         """
         while not EOL in self.buffer and self.connected:
             self._recv()
