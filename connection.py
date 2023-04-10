@@ -7,6 +7,7 @@ import socket
 import os
 from constants import *
 from base64 import b64encode
+import logging
 
 
 class Connection(object):
@@ -52,23 +53,27 @@ class Connection(object):
         Raises:
             ValueError: Si se especifica una codificación inválida.
         """
-        # Verifica y aplica la codificación a utilizar
-        if codif == "ascii":
-            message = message.encode("ascii")
-        elif codif == "b64encode":
-            message = b64encode(message)
-        else:
-            raise ValueError(f"send: codificación inválida '{codif}'")
-        # Envía el mensaje
-        while message:
-            bytes_sent = self.s.send(message)
-            assert bytes_sent > 0
-            message = message[bytes_sent:]
-        self.s.send(EOL.encode("ascii"))  # Envía el fin de línea
+        try:
+            # Verifica y aplica la codificación a utilizar
+            if codif == "ascii":
+                message = message.encode("ascii")
+            elif codif == "b64encode":
+                message = b64encode(message)
+            else:
+                raise ValueError(f"send: codificación inválida '{codif}'")
+            # Envía el mensaje
+            while message:
+                bytes_sent = self.s.send(message)
+                assert bytes_sent > 0
+                message = message[bytes_sent:]
+            self.s.send(EOL.encode("ascii"))  # Envía el fin de línea
+
+        except BrokenPipeError:
+            logging.warning("No se pudo contactar al cliente")
 
     def header(self, cod: int):
         """
-        Envia el encabezado de respuesta al cliente y 
+        Envia el encabezado de respuesta al cliente y
         cierra la conexión en los errores fatales.
 
         Args:
@@ -132,7 +137,7 @@ class Connection(object):
 
     def get_slice(self, filename: str, offset: int, size: int):
         """
-        Obtiene un slice del archivo especificado y 
+        Obtiene un slice del archivo especificado y
         lo envía al cliente en formato base64.
 
         Args:
