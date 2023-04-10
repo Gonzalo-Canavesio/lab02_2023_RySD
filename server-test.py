@@ -251,6 +251,38 @@ class TestHFTPErrors(TestBase):
         )
         c.close()
 
+    def test_get_bad_offset(self):
+        self.output_file = "bar"
+        test_data = "The quick brown fox jumped over the lazy dog"
+        f = open(os.path.join(DATADIR, self.output_file), "w")
+        f.write(test_data)
+        f.close()
+        c = self.new_client()
+        c.send("get_slice " + self.output_file + " 0 " + str(1 + len(test_data)))
+        status, message = c.read_response_line(TIMEOUT)
+        self.assertEqual(
+            status,
+            constants.BAD_OFFSET,
+            "El servidor no contestó 203 ante un offset invalido",
+        )
+        c.close()
+
+    def test_get_bad_offset2(self):
+        self.output_file = "bar"
+        test_data = "The quick brown fox jumped over the lazy dog"
+        f = open(os.path.join(DATADIR, self.output_file), "w")
+        f.write(test_data)
+        f.close()
+        c = self.new_client()
+        c.send("get_slice " + self.output_file + " 1 " + str(len(test_data)))
+        status, message = c.read_response_line(TIMEOUT)
+        self.assertEqual(
+            status,
+            constants.BAD_OFFSET,
+            "El servidor no contestó 203 ante un offset invalido",
+        )
+        c.close()
+
 
 class TestHFTPHard(TestBase):
     def test_command_in_pieces(self):
@@ -378,38 +410,6 @@ class TestHFTPCustom(TestBase):
             status,
             constants.INVALID_ARGUMENTS,
             "El servidor no contestó 201 ante un nombre de argumento invalido",
-        )
-        c.close()
-
-    def test_get_incorrect_slice(self):
-        self.output_file = "bar"
-        test_data = "The quick brown fox jumped over the lazy dog"
-        f = open(os.path.join(DATADIR, self.output_file), "w")
-        f.write(test_data)
-        f.close()
-        c = self.new_client()
-        c.send("get_slice " + self.output_file + " 0 " + str(1 + len(test_data)))
-        status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.BAD_OFFSET,
-            "El servidor no contestó 203 ante un offset invalido",
-        )
-        c.close()
-
-    def test_get_incorrect_slice2(self):
-        self.output_file = "bar"
-        test_data = "The quick brown fox jumped over the lazy dog"
-        f = open(os.path.join(DATADIR, self.output_file), "w")
-        f.write(test_data)
-        f.close()
-        c = self.new_client()
-        c.send("get_slice " + self.output_file + " 1 " + str(len(test_data)))
-        status, message = c.read_response_line(TIMEOUT)
-        self.assertEqual(
-            status,
-            constants.BAD_OFFSET,
-            "El servidor no contestó 203 ante un offset invalido",
         )
         c.close()
 
