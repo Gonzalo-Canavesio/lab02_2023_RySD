@@ -70,7 +70,7 @@ class Connection(object):
 
         except BrokenPipeError or ConnectionResetError:
             logging.warning("No se pudo contactar al cliente")
-            self.close()
+            self.connected = False
 
     def header(self, cod: int):
         """
@@ -231,7 +231,7 @@ class Connection(object):
             self.header(BAD_REQUEST)
         except ConnectionResetError or BrokenPipeError:
             logging.warning("No se pudo contactar al cliente")
-            self.close()
+            self.connected = False
 
     def read_line(self):
         """
