@@ -68,8 +68,9 @@ class Connection(object):
                 message = message[bytes_sent:]
             self.s.send(EOL.encode("ascii"))  # Envía el fin de línea
 
-        except BrokenPipeError:
+        except BrokenPipeError or ConnectionResetError:
             logging.warning("No se pudo contactar al cliente")
+            self.close()
 
     def header(self, cod: int):
         """
@@ -208,8 +209,6 @@ class Connection(object):
                     self.header(INVALID_ARGUMENTS)
             else:
                 self.header(INVALID_COMMAND)
-        except ConnectionResetError or BrokenPipeError:
-            self.close()
         except Exception as e:
             print(f"Error in connection handling: {e}")
             self.header(INTERNAL_ERROR)
@@ -231,6 +230,7 @@ class Connection(object):
         except UnicodeError:
             self.header(BAD_REQUEST)
         except ConnectionResetError or BrokenPipeError:
+            logging.warning("No se pudo contactar al cliente")
             self.close()
 
     def read_line(self):
